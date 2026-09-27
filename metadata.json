@@ -1,0 +1,6 @@
+{
+  "name": "DuoCalendar - Calendario para Parejas",
+  "description": "Calendario compartido para parejas con colores individuales, vistas de Google Calendar, sincronización de eventos y app instalable en móvil y ordenador.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

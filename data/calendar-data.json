@@ -1,0 +1,228 @@
+{
+  "couple": {
+    "partner1": {
+      "id": "partner1",
+      "name": "Miguel",
+      "color": "#4F46E5",
+      "avatarBg": "#E0E7FF"
+    },
+    "partner2": {
+      "id": "partner2",
+      "name": "Giulia",
+      "color": "#F43F5E",
+      "avatarBg": "#FFE4E6"
+    },
+    "sharedColor": "#8B5CF6",
+    "anniversaryDate": "2025-02-14",
+    "theme": "dragons"
+  },
+  "events": [
+    {
+      "id": "evt-valentin-2025",
+      "title": "San Valentín 2025 ❤️ Cita de los Enamorados",
+      "description": "Día de San Valentín inolvidable para Miguel & Giulia. ¡Nuestra fecha más especial! ❤️🌹",
+      "startDate": "2025-02-14",
+      "endDate": "2025-02-14",
+      "startTime": "20:30",
+      "endTime": "23:59",
+      "allDay": false,
+      "ownerId": "both",
+      "color": "#EF4444",
+      "category": "romantic",
+      "mood": "love",
+      "supportMessages": [
+        {
+          "id": "sup-val-1",
+          "senderId": "partner1",
+          "senderName": "Miguel",
+          "text": "¡Buon San Valentino, amore mio! Te amo con locura ❤️✨",
+          "emoji": "❤️",
+          "createdAt": "2025-02-14T08:00:00.000Z"
+        },
+        {
+          "id": "sup-val-2",
+          "senderId": "partner2",
+          "senderName": "Giulia",
+          "text": "Amore mio grande, per sempre noi due! ❤️🥂",
+          "emoji": "🌹",
+          "createdAt": "2025-02-14T08:30:00.000Z"
+        }
+      ],
+      "location": "Restaurante Romántico con vistas & Paseo de la mano",
+      "createdAt": "2025-02-14T00:00:00.000Z",
+      "updatedAt": "2025-02-14T00:00:00.000Z"
+    },
+    {
+      "id": "evt-1",
+      "title": "Cena a lume di candela 🍷🍝",
+      "description": "Probar la trattoria italiana del centro. Tavolo riservato per Miguel & Giulia!",
+      "startDate": "2026-09-30",
+      "endDate": "2026-09-30",
+      "startTime": "21:00",
+      "endTime": "23:30",
+      "allDay": false,
+      "ownerId": "both",
+      "color": "#8B5CF6",
+      "category": "romantic",
+      "mood": "love",
+      "supportMessages": [
+        {
+          "id": "sup-1",
+          "senderId": "partner1",
+          "senderName": "Miguel",
+          "text": "¡Con muchísimas ganas de nuestra cena amor mío! ❤️",
+          "emoji": "🥰",
+          "createdAt": "2026-09-27T08:44:36.075Z"
+        }
+      ],
+      "location": "Trattoria Bella Vista",
+      "reminder": "1h",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-2",
+      "title": "Entrevista de trabajo importante",
+      "description": "Presentación del proyecto y ronda técnica con el equipo.",
+      "startDate": "2026-09-28",
+      "endDate": "2026-09-28",
+      "startTime": "10:00",
+      "endTime": "11:30",
+      "allDay": false,
+      "ownerId": "partner1",
+      "color": "#4F46E5",
+      "category": "work",
+      "mood": "nervous",
+      "supportMessages": [
+        {
+          "id": "sup-2",
+          "senderId": "partner2",
+          "senderName": "Giulia",
+          "text": "Forza amore mio! Te saldrá espectacular, eres el mejor ❤️💪",
+          "emoji": "🍀",
+          "createdAt": "2026-09-27T08:45:00.000Z"
+        }
+      ],
+      "location": "Oficina central / Remoto",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-3",
+      "title": "Corso di Yoga & Benessere",
+      "description": "Llevar esterilla y ropa cómoda para desconectar.",
+      "startDate": "2026-09-29",
+      "endDate": "2026-09-29",
+      "startTime": "18:30",
+      "endTime": "19:45",
+      "allDay": false,
+      "ownerId": "partner2",
+      "color": "#F43F5E",
+      "category": "health",
+      "mood": "relaxed",
+      "location": "Centro Zen Studio",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-4",
+      "title": "Escapada rural de fin de semana",
+      "description": "Cabaña en la montaña con chimenea, relax y senderismo.",
+      "startDate": "2026-10-02",
+      "endDate": "2026-10-04",
+      "startTime": "09:00",
+      "endTime": "18:00",
+      "allDay": true,
+      "ownerId": "both",
+      "color": "#10B981",
+      "category": "trip",
+      "mood": "excited",
+      "location": "Sierra de Guadarrama",
+      "reminder": "1d",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-5",
+      "title": "Dentista - Revisión anual",
+      "description": "Revisión rutinaria y limpieza dental programada.",
+      "startDate": "2026-09-27",
+      "endDate": "2026-09-27",
+      "startTime": "17:00",
+      "endTime": "17:45",
+      "allDay": false,
+      "ownerId": "partner2",
+      "color": "#F43F5E",
+      "category": "health",
+      "mood": "lazy",
+      "location": "Clínica Dental Alameda",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-6",
+      "title": "Partido de pádel con amigos",
+      "description": "Partidillo de 4 jugadores en el polideportivo.",
+      "startDate": "2026-09-26",
+      "endDate": "2026-09-26",
+      "startTime": "19:00",
+      "endTime": "20:30",
+      "allDay": false,
+      "ownerId": "partner1",
+      "color": "#4F46E5",
+      "category": "leisure",
+      "mood": "fire",
+      "location": "Club de Pádel",
+      "createdAt": "2026-09-27T08:44:36.075Z",
+      "updatedAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "evt-1790533654172",
+      "title": "Hola",
+      "description": "",
+      "startDate": "2026-09-27",
+      "endDate": "2026-09-27",
+      "startTime": "06:00",
+      "endTime": "07:00",
+      "allDay": false,
+      "ownerId": "partner1",
+      "color": "#4F46E5",
+      "category": "other",
+      "supportMessages": [],
+      "location": "",
+      "createdAt": "2026-09-27T18:27:26.082Z",
+      "updatedAt": "2026-09-27T18:27:26.082Z"
+    }
+  ],
+  "plans": [
+    {
+      "id": "plan-1",
+      "title": "Preparar pizza napoletana casera juntos 🍕",
+      "notes": "Hacer la masa reposar 24h, comprar mozzarella di bufala y albahaca fresca",
+      "suggestedBy": "partner2",
+      "category": "dinner",
+      "estimatedCost": "€",
+      "completed": false,
+      "createdAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "plan-2",
+      "title": "Tarde de cine al aire libre con mantita",
+      "notes": "Llevar palomitas, bebidas y mantita suave",
+      "suggestedBy": "partner1",
+      "category": "activity",
+      "completed": false,
+      "createdAt": "2026-09-27T08:44:36.075Z"
+    },
+    {
+      "id": "plan-3",
+      "title": "Viaje a Roma para nuestro aniversario",
+      "notes": "Paseo por Trastevere, Fontana di Trevi y comer el mejor gelato",
+      "suggestedBy": "partner1",
+      "category": "trip",
+      "estimatedCost": "€€€",
+      "completed": false,
+      "createdAt": "2026-09-27T08:44:36.075Z"
+    }
+  ]
+}

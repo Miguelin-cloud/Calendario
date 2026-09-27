@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stopColor="#FFF1F2" />
+      <stop offset="100%" stopColor="#FDE2E4" />
+    </radialGradient>
+    <linearGradient id="brownBearGrad" x1="20%" y1="10%" x2="80%" y2="90%">
+      <stop offset="0%" stopColor="#B07559" />
+      <stop offset="100%" stopColor="#78442E" />
+    </linearGradient>
+    <linearGradient id="whiteBearGrad" x1="20%" y1="10%" x2="80%" y2="90%">
+      <stop offset="0%" stopColor="#FFFFFF" />
+      <stop offset="100%" stopColor="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#FF4B6E" />
+      <stop offset="100%" stopColor="#E11D48" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#881337" floodOpacity="0.2" />
+    </filter>
+  </defs>
+
+  {/* Background rounded squircle */}
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" stroke="#FECDD3" stroke-width="8" />
+
+  {/* --- BROWN BEAR (LEFT) --- */}
+  <g id="brown-bear">
+    {/* Ears */}
+    <circle cx="120" cy="140" r="50" fill="url(#brownBearGrad)" />
+    <circle cx="120" cy="140" r="28" fill="#FBCFE8" />
+
+    {/* Head */}
+    <ellipse cx="185" cy="215" rx="98" ry="88" fill="url(#brownBearGrad)" />
+
+    {/* Body */}
+    <ellipse cx="175" cy="350" rx="90" ry="105" fill="url(#brownBearGrad)" />
+
+    {/* Snout */}
+    <ellipse cx="200" cy="235" rx="42" ry="32" fill="#FDE68A" />
+    {/* Nose */}
+    <ellipse cx="200" cy="225" rx="15" ry="11" fill="#3E1F13" />
+    {/* Mouth */}
+    <path d="M190 238 Q200 248 210 238" stroke="#3E1F13" stroke-width="6" stroke-linecap="round" fill="none" />
+
+    {/* Eyes */}
+    <circle cx="160" cy="195" r="12" fill="#29140B" />
+    <circle cx="156" cy="191" r="4" fill="#FFFFFF" />
+    <circle cx="220" cy="195" r="12" fill="#29140B" />
+    <circle cx="216" cy="191" r="4" fill="#FFFFFF" />
+
+    {/* Rosy Cheek */}
+    <ellipse cx="140" cy="225" rx="14" ry="8" fill="#F43F5E" opacity="0.4" />
+
+    {/* Left Arm hugging */}
+    <path
+      d="M165 295 C200 310, 240 325, 250 290 C250 270, 210 265, 175 275"
+      fill="url(#brownBearGrad)"
+      stroke="#5C3322"
+      stroke-width="4"
+    />
+    <circle cx="240" cy="290" r="13" fill="#FDE68A" />
+  </g>
+
+  {/* --- WHITE BEAR (RIGHT) --- */}
+  <g id="white-bear">
+    {/* Ears */}
+    <circle cx="392" cy="140" r="50" fill="url(#whiteBearGrad)" stroke="#CBD5E1" stroke-width="3" />
+    <circle cx="392" cy="140" r="28" fill="#FECDD3" />
+
+    {/* Head */}
+    <ellipse cx="327" cy="215" rx="98" ry="88" fill="url(#whiteBearGrad)" stroke="#E2E8F0" stroke-width="3" />
+
+    {/* Body */}
+    <ellipse cx="337" cy="350" rx="90" ry="105" fill="url(#whiteBearGrad)" stroke="#CBD5E1" stroke-width="3" />
+
+    {/* Snout */}
+    <ellipse cx="312" cy="235" rx="42" ry="32" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="3" />
+    {/* Nose */}
+    <ellipse cx="312" cy="225" rx="15" ry="11" fill="#334155" />
+    {/* Mouth */}
+    <path d="M302 238 Q312 248 322 238" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none" />
+
+    {/* Eyes */}
+    <circle cx="292" cy="195" r="12" fill="#0F172A" />
+    <circle cx="288" cy="191" r="4" fill="#FFFFFF" />
+    <circle cx="352" cy="195" r="12" fill="#0F172A" />
+    <circle cx="348" cy="191" r="4" fill="#FFFFFF" />
+
+    {/* Rosy Cheek */}
+    <ellipse cx="372" cy="225" rx="14" ry="8" fill="#FB7185" opacity="0.4" />
+
+    {/* Right Arm hugging */}
+    <path
+      d="M347 295 C312 310, 272 325, 262 290 C262 270, 302 265, 337 275"
+      fill="url(#whiteBearGrad)"
+      stroke="#94A3B8"
+      stroke-width="4"
+    />
+    <circle cx="272" cy="290" r="13" fill="#FECDD3" />
+  </g>
+
+  {/* --- GLOWING ROMANTIC HEART IN THE CENTER --- */}
+  <g filter="url(#shadow)">
+    <path
+      d="M256 270 C256 245, 226 225, 201 245 C176 265, 196 300, 256 345 C316 300, 336 265, 311 245 C286 225, 256 245, 256 270 Z"
+      fill="url(#heartGrad)"
+    />
+    {/* Heart Highlight / Sparkle */}
+    <ellipse cx="230" cy="255" rx="10" ry="6" transform="rotate(-30 230 255)" fill="#FFFFFF" opacity="0.7" />
+    <path
+      d="M256 240 L261 225 L266 240 L281 245 L266 250 L261 265 L256 250 L241 245 Z"
+      fill="#FFFBEB"
+      opacity="0.95"
+    />
+  </g>
+</svg>
