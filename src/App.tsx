@@ -198,7 +198,7 @@ export default function App() {
   const isDragons = couple.theme === 'dragons';
 
   return (
-    <div className={`theme-${couple.theme || 'classic'} min-h-screen lg:h-screen lg:overflow-hidden ${theme.bgMain} flex flex-col ${theme.fontDisplay} antialiased ${theme.textPrimary} transition-colors duration-300 relative`}>
+    <div className={`theme-${couple.theme || 'classic'} min-h-[100dvh] lg:h-screen lg:overflow-hidden ${theme.bgMain} flex flex-col ${theme.fontDisplay} antialiased ${theme.textPrimary} transition-colors duration-300 relative`}>
       {/* Offline Alert Banner */}
       {!isOnline && (
         <div className="bg-amber-500 text-white text-xs font-semibold px-4 py-1.5 flex items-center justify-center gap-2 shadow-xs z-50">

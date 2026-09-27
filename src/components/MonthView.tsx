@@ -1,13 +1,16 @@
-import React from 'react';
-import { CalendarEvent, CoupleConfig, MOODS } from '../types/calendar';
+import React, { useMemo } from 'react';
+import {
+  CalendarEvent,
+  CalendarDay,
+  CoupleConfig,
+} from '../types/calendar';
 import {
   getMonthDays,
-  CalendarDay,
   getCoupleAnniversaryHighlight,
 } from '../utils/dateUtils';
 import { THEMES } from '../utils/themeStyles';
 import { Language, TRANSLATIONS } from '../utils/i18n';
-import { Heart } from 'lucide-react';
+import { Heart, Sparkles, MessageCircleHeart } from 'lucide-react';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -16,7 +19,7 @@ interface MonthViewProps {
   lang?: Language;
   onSelectEvent: (event: CalendarEvent) => void;
   onSelectDay: (dateString: string) => void;
-  onQuickAdd: (dateString: string) => void;
+  onQuickAdd: (dateString?: string) => void;
 }
 
 export const MonthView: React.FC<MonthViewProps> = ({
@@ -28,35 +31,24 @@ export const MonthView: React.FC<MonthViewProps> = ({
   onSelectDay,
   onQuickAdd,
 }) => {
-  const days = getMonthDays(currentDate.getFullYear(), currentDate.getMonth());
   const theme = THEMES[couple.theme || 'classic'];
   const t = TRANSLATIONS[lang];
 
-  // Group events by date
-  const eventsByDate = React.useMemo(() => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const days = useMemo(() => {
+    return getMonthDays(year, month);
+  }, [year, month]);
+
+  // Group events by date for fast lookup
+  const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     for (const evt of events) {
       if (!map[evt.startDate]) {
         map[evt.startDate] = [];
       }
       map[evt.startDate].push(evt);
-
-      // If multi-day event
-      if (evt.endDate && evt.endDate !== evt.startDate) {
-        const start = new Date(evt.startDate);
-        const end = new Date(evt.endDate);
-        const curr = new Date(start);
-        curr.setDate(curr.getDate() + 1);
-        while (curr <= end) {
-          const pad = (n: number) => String(n).padStart(2, '0');
-          const dStr = `${curr.getFullYear()}-${pad(curr.getMonth() + 1)}-${pad(curr.getDate())}`;
-          if (!map[dStr]) map[dStr] = [];
-          if (!map[dStr].some((e) => e.id === evt.id)) {
-            map[dStr].push(evt);
-          }
-          curr.setDate(curr.getDate() + 1);
-        }
-      }
     }
     return map;
   }, [events]);
@@ -68,14 +60,14 @@ export const MonthView: React.FC<MonthViewProps> = ({
   };
 
   return (
-    <div className={`flex-1 flex flex-col ${theme.bgCard} overflow-x-auto overflow-y-auto select-none transition-colors`}>
-      <div className="min-w-[650px] sm:min-w-0 flex-1 flex flex-col">
+    <div className={`flex-1 flex flex-col ${theme.bgCard} overflow-hidden select-none transition-colors w-full`}>
+      <div className="w-full flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* Weekday Header */}
-        <div className={`grid grid-cols-7 border-b ${theme.borderSubtle} bg-black/5 dark:bg-white/5 text-center py-2 shrink-0`}>
+        <div className={`grid grid-cols-7 border-b ${theme.borderSubtle} bg-black/5 dark:bg-white/5 text-center py-1.5 sm:py-2 shrink-0`}>
           {t.daysOfWeekShort.map((dayName, idx) => (
             <div
               key={dayName}
-              className={`text-xs font-bold ${
+              className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
                 idx >= 5 ? 'text-indigo-600 dark:text-indigo-400' : 'opacity-70'
               }`}
             >
@@ -85,11 +77,11 @@ export const MonthView: React.FC<MonthViewProps> = ({
         </div>
 
         {/* Grid of Days */}
-        <div className={`flex-1 grid grid-cols-7 grid-rows-5 sm:grid-rows-6 divide-x divide-y ${theme.borderSubtle} border-b min-h-[550px]`}>
+        <div className={`flex-1 grid grid-cols-7 grid-rows-5 sm:grid-rows-6 divide-x divide-y ${theme.borderSubtle} border-b min-h-0`}>
           {days.map((dayItem: CalendarDay) => {
             const dayEvents = eventsByDate[dayItem.dateString] || [];
             const annivHighlight = getCoupleAnniversaryHighlight(dayItem.dateString, lang);
-            const maxVisible = 3;
+            const maxVisible = 2; // on mobile show top 2, desktop can expand
             const visibleEvents = dayEvents.slice(0, maxVisible);
             const hiddenCount = dayEvents.length - maxVisible;
 
@@ -101,25 +93,25 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     onQuickAdd(dayItem.dateString);
                   }
                 }}
-                className={`min-h-[90px] sm:min-h-[110px] p-1 sm:p-1.5 flex flex-col transition-colors group relative ${
+                className={`min-h-[56px] sm:min-h-[85px] md:min-h-[105px] p-0.5 sm:p-1.5 flex flex-col transition-colors group relative overflow-hidden ${
                   annivHighlight.isAnniversary
                     ? annivHighlight.isGrand
-                      ? 'bg-rose-100/50 dark:bg-rose-950/40 ring-1 ring-rose-400/50'
-                      : 'bg-rose-50/50 dark:bg-rose-950/20'
+                      ? 'bg-rose-100/60 dark:bg-rose-950/40 ring-1 ring-rose-400/50'
+                      : 'bg-rose-50/60 dark:bg-rose-950/20'
                     : dayItem.isCurrentMonth
                     ? 'hover:bg-black/5 dark:hover:bg-white/5'
                     : 'opacity-40 hover:opacity-60 bg-black/5'
                 }`}
               >
                 {/* Day Header */}
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectDay(dayItem.dateString);
                       }}
-                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold transition-all cursor-pointer ${
                         dayItem.isToday
                           ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
                           : annivHighlight.isAnniversary
@@ -136,7 +128,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     {/* Corazoncito en cada 14 de mes (cumplemés y gran aniversario) */}
                     {annivHighlight.isAnniversary && (
                       <span
-                        className="inline-flex items-center text-xs sm:text-sm animate-pulse cursor-pointer select-none"
+                        className="inline-flex items-center text-[10px] sm:text-xs animate-pulse cursor-pointer select-none"
                         title={annivHighlight.tooltip}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -154,7 +146,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                       e.stopPropagation();
                       onQuickAdd(dayItem.dateString);
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700 hover:bg-black/10 w-5 h-5 rounded-md flex items-center justify-center text-xs transition-opacity cursor-pointer"
+                    className="hidden md:flex opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700 hover:bg-black/10 w-5 h-5 rounded-md items-center justify-center text-xs transition-opacity cursor-pointer"
                     title={t.addEventToDay}
                   >
                     +
@@ -162,102 +154,74 @@ export const MonthView: React.FC<MonthViewProps> = ({
                 </div>
 
                 {/* Event Pills & Anniversary Milestone Banner */}
-                <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[90px] sm:max-h-none scrollbar-none">
+                <div className="flex-1 flex flex-col gap-0.5 sm:gap-1 overflow-hidden">
                   {/* Anniversary Highlight Badge Pill */}
                   {annivHighlight.isAnniversary && (
                     <div
-                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-2xs select-none ${
+                      className={`text-[9px] sm:text-[10px] font-extrabold px-1 py-0.5 rounded sm:rounded-md truncate flex items-center gap-0.5 sm:gap-1 shadow-2xs select-none ${
                         annivHighlight.isGrand
                           ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white animate-pulse'
                           : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 border border-rose-200/80 dark:border-rose-800/60'
                       }`}
                       title={annivHighlight.tooltip}
                     >
-                      <span className="text-[11px] shrink-0">{annivHighlight.emoji}</span>
-                      <span className="truncate">{annivHighlight.shortBadge}</span>
+                      <span className="text-[10px] shrink-0">{annivHighlight.emoji}</span>
+                      <span className="truncate hidden sm:inline">{annivHighlight.shortBadge}</span>
+                      <span className="truncate sm:hidden">14</span>
                     </div>
                   )}
 
-                  {visibleEvents.map((evt) => {
-                    const isBoth = evt.ownerId === 'both';
-                    const ownerName = getOwnerName(evt.ownerId);
-                    const moodInfo = evt.mood ? MOODS[evt.mood] : null;
-                    const p1MoodInfo = evt.partnerMoods?.partner1 ? MOODS[evt.partnerMoods.partner1] : null;
-                    const p2MoodInfo = evt.partnerMoods?.partner2 ? MOODS[evt.partnerMoods.partner2] : null;
-                    const hasSupport = evt.supportMessages && evt.supportMessages.length > 0;
+                  {/* Events list */}
+                  {visibleEvents.map((event) => {
+                    const isShared = event.ownerId === 'both';
+                    const isPartner1 = event.ownerId === 'partner1';
+                    const ownerColor = isShared
+                      ? couple.sharedColor
+                      : isPartner1
+                      ? couple.partner1.color
+                      : couple.partner2.color;
 
                     return (
                       <button
-                        key={evt.id}
+                        key={event.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectEvent(evt);
+                          onSelectEvent(event);
                         }}
-                        className="w-full text-left px-1.5 py-0.5 rounded text-[11px] leading-tight font-medium truncate flex items-center gap-1.5 transition-transform hover:scale-[1.01] active:scale-95 shadow-2xs cursor-pointer"
+                        className="text-left w-full px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[11px] font-medium transition-transform hover:scale-[1.02] active:scale-98 cursor-pointer truncate flex items-center gap-1 shadow-2xs leading-tight"
                         style={{
-                          backgroundColor: `${evt.color}1c`,
-                          borderLeft: `3px solid ${evt.color}`,
-                          color: evt.color,
+                          backgroundColor: `${ownerColor}20`,
+                          borderLeft: `2.5px solid ${ownerColor}`,
+                          color: ownerColor,
                         }}
-                        title={`${evt.title} (${ownerName})${moodInfo ? ` · ${moodInfo.label}` : ''}${evt.startTime ? ` · ${evt.startTime}` : ''}`}
+                        title={`${event.title} (${event.startTime || 'Todo el día'}) - ${getOwnerName(event.ownerId)}`}
                       >
-                        {/* Mood & Energy or Owner Icon */}
-                        {p1MoodInfo && p2MoodInfo ? (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] shrink-0 leading-none">
-                            <span title={`${couple.partner1.name}: ${p1MoodInfo.label}`}>{p1MoodInfo.emoji}</span>
-                            <span title={`${couple.partner2.name}: ${p2MoodInfo.label}`}>{p2MoodInfo.emoji}</span>
-                          </span>
-                        ) : moodInfo ? (
-                          <span className="text-[12px] shrink-0 leading-none" title={moodInfo.label}>
-                            {moodInfo.emoji}
-                          </span>
-                        ) : isBoth ? (
-                          <Heart className="w-2.5 h-2.5 shrink-0 fill-current text-rose-500" />
-                        ) : (
-                          <span
-                            className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ backgroundColor: evt.color }}
-                          />
-                        )}
-
-                        {/* Time if not all day */}
-                        {!evt.allDay && evt.startTime && (
-                          <span className="text-[10px] opacity-75 shrink-0 tabular-nums">
-                            {evt.startTime}
+                        {event.startTime && (
+                          <span className="font-bold opacity-80 shrink-0 text-[8px] sm:text-[10px] hidden sm:inline">
+                            {event.startTime}
                           </span>
                         )}
-
-                        <span className="truncate text-slate-900 dark:text-slate-100 font-semibold">
-                          {evt.title}
+                        <span className="truncate font-semibold flex-1">
+                          {event.title}
                         </span>
-
-                        {/* Scrapbook photo indicator */}
-                        {(evt.photoUrl || (evt.photos && evt.photos.length > 0)) && (
-                          <span className="text-[10px] ml-auto shrink-0" title={t.detail.singleMemory}>
-                            📸
-                          </span>
-                        )}
-
-                        {/* Support indicator */}
-                        {hasSupport && (
-                          <span className="text-[10px] ml-1 shrink-0" title={t.detail.supportTitle}>
-                            ❤️
+                        {event.supportMessages && event.supportMessages.length > 0 && (
+                          <span className="shrink-0 hidden md:inline text-[9px]">
+                            💌{event.supportMessages.length}
                           </span>
                         )}
                       </button>
                     );
                   })}
 
-                  {/* Overflow +X más */}
                   {hiddenCount > 0 && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectDay(dayItem.dateString);
                       }}
-                      className="text-[10px] font-bold text-slate-500 hover:text-slate-800 text-left px-1 py-0.5 rounded hover:bg-black/5 transition-colors cursor-pointer"
+                      className="text-[8px] sm:text-[10px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-left px-1 cursor-pointer truncate"
                     >
-                      +{hiddenCount} {t.moreEvents}
+                      +{hiddenCount} {lang === 'it' ? 'altri' : 'más'}
                     </button>
                   )}
                 </div>

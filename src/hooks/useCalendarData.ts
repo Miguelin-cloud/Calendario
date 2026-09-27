@@ -131,20 +131,29 @@ export function useCalendarData() {
     }
   }, [updateCache]);
 
-  // Initial load and periodic polling
+  // Initial load and fast periodic polling (shared live sync between Miguel & Giulia)
   useEffect(() => {
     fetchData(false);
 
     const interval = setInterval(() => {
       fetchData(true);
-    }, 10000); // 10s background sync
+    }, 3500); // 3.5s background sync for immediate shared updates
 
-    const onFocus = () => fetchData(true);
-    window.addEventListener('focus', onFocus);
+    const onWake = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    };
+
+    window.addEventListener('focus', onWake);
+    window.addEventListener('online', onWake);
+    document.addEventListener('visibilitychange', onWake);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('focus', onWake);
+      window.removeEventListener('online', onWake);
+      document.removeEventListener('visibilitychange', onWake);
     };
   }, [fetchData]);
 
