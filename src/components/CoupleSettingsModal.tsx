@@ -3,12 +3,14 @@ import { CoupleConfig, AppTheme, PRESET_PALETTES } from '../types/calendar';
 import { getNextAnniversaryInfo } from '../utils/dateUtils';
 import { THEMES } from '../utils/themeStyles';
 import { Language, TRANSLATIONS } from '../utils/i18n';
-import { X, Heart, Palette, Calendar, RotateCcw, Check, Sparkles } from 'lucide-react';
+import { X, Heart, Palette, Calendar, RotateCcw, Check, Sparkles, Bell, BellRing } from 'lucide-react';
 
 interface CoupleSettingsModalProps {
   isOpen: boolean;
   couple: CoupleConfig;
   lang?: Language;
+  notificationPermission?: NotificationPermission;
+  onEnableNotifications?: () => Promise<NotificationPermission>;
   onClose: () => void;
   onSave: (newConfig: Partial<CoupleConfig>) => void;
   onResetDemo: () => void;
@@ -18,6 +20,8 @@ export const CoupleSettingsModal: React.FC<CoupleSettingsModalProps> = ({
   isOpen,
   couple,
   lang = 'es',
+  notificationPermission = 'default',
+  onEnableNotifications,
   onClose,
   onSave,
   onResetDemo,
@@ -33,8 +37,17 @@ export const CoupleSettingsModal: React.FC<CoupleSettingsModalProps> = ({
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>(couple.theme || 'classic');
   const [anniversaryDate, setAnniversaryDate] = useState(couple.anniversaryDate || '');
   const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const [isActivatingNotif, setIsActivatingNotif] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleActivateNotifs = async () => {
+    if (onEnableNotifications) {
+      setIsActivatingNotif(true);
+      await onEnableNotifications();
+      setIsActivatingNotif(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

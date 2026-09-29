@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CoupleConfig,
   CalendarEvent,
@@ -8,8 +8,23 @@ import {
   SupportMessage,
   EventPhoto,
 } from '../types/calendar';
+import {
+  db,
+  cleanForFirestore,
+  handleFirestoreError,
+  OperationType,
+} from '../firebase';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  setDoc,
+  deleteDoc,
+} from 'firebase/firestore';
+import { triggerEventNotification } from '../utils/notifications';
+import { ToastNotification } from '../components/NotificationToast';
 
-const LOCAL_STORAGE_KEY = 'duocalendar_cache_v2';
+const LOCAL_STORAGE_KEY = 'duocalendar_cache_v4';
 const CURRENT_PARTNER_KEY = 'duocalendar_current_user_v1';
 
 const DEFAULT_COUPLE: CoupleConfig = {
@@ -27,7 +42,7 @@ const DEFAULT_COUPLE: CoupleConfig = {
   },
   sharedColor: '#8B5CF6',
   anniversaryDate: '2025-02-14',
-  theme: 'classic',
+  theme: 'bears',
 };
 
 export function useCalendarData() {
@@ -37,16 +52,13 @@ export function useCalendarData() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.couple) {
-          if (parsed.couple.partner2.name === 'Ella' || !parsed.couple.partner2.name) {
+          if (parsed.couple.partner2?.name === 'Ella' || !parsed.couple.partner2?.name) {
             parsed.couple.partner2.name = 'Giulia';
-          }
-          if (!parsed.couple.theme) {
-            parsed.couple.theme = 'classic';
           }
           return parsed.couple;
         }
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     return DEFAULT_COUPLE;
@@ -59,7 +71,7 @@ export function useCalendarData() {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed.events)) return parsed.events;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     return [];
@@ -72,7 +84,7 @@ export function useCalendarData() {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed.plans)) return parsed.plans;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     return [];
@@ -82,7 +94,7 @@ export function useCalendarData() {
     try {
       const saved = localStorage.getItem(CURRENT_PARTNER_KEY);
       if (saved === 'partner2' || saved === 'partner1') return saved;
-    } catch (e) {
+    } catch {
       // ignore
     }
     return 'partner1';
@@ -90,84 +102,192 @@ export function useCalendarData() {
 
   const [filterOwner, setFilterOwner] = useState<EventOwner | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [activeToast, setActiveToast] = useState<ToastNotification | null>(null);
+
+  const initialEventsLoadedRef = useRef(false);
+  const currentPartnerIdRef = useRef(currentPartnerId);
+  currentPartnerIdRef.current = currentPartnerId;
+  const coupleRef = useRef(couple);
+  coupleRef.current = couple;
+
+  // Auto-dismiss toast after 4.5 seconds
+  useEffect(() => {
+    if (!activeToast) return;
+    const timer = setTimeout(() => {
+      setActiveToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [activeToast]);
 
   // Sync to local cache
   const updateCache = useCallback((c: CoupleConfig, evts: CalendarEvent[], pls: WishlistPlan[]) => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ couple: c, events: evts, plans: pls }));
-    } catch (e) {
+    } catch {
       // storage quota or disabled
     }
   }, []);
 
-  // Fetch from server
-  const fetchData = useCallback(async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
-    setIsSyncing(true);
-    try {
-      const res = await fetch('/api/data');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.couple) {
-          if (data.couple.partner2.name === 'Ella') {
-            data.couple.partner2.name = 'Giulia';
-          }
-          if (!data.couple.theme) {
-            data.couple.theme = 'classic';
-          }
-          setCouple(data.couple);
-        }
-        if (Array.isArray(data.events)) setEvents(data.events);
-        if (Array.isArray(data.plans)) setPlans(data.plans);
-        updateCache(data.couple, data.events, data.plans);
-      }
-    } catch (err) {
-      console.warn('Network offline or error fetching calendar data:', err);
-    } finally {
-      setLoading(false);
-      setIsSyncing(false);
-    }
-  }, [updateCache]);
-
-  // Initial load and fast periodic polling (shared live sync between Miguel & Giulia)
+  // --------------------------------------------------------------------------
+  // REAL-TIME FIRESTORE LISTENERS (LIVE SYNC ACROSS ALL PHONES, PCS & VERCEL)
+  // --------------------------------------------------------------------------
   useEffect(() => {
-    fetchData(false);
+    let unsubscribeCouple: (() => void) | null = null;
+    let unsubscribeEvents: (() => void) | null = null;
+    let unsubscribePlans: (() => void) | null = null;
 
-    const interval = setInterval(() => {
-      fetchData(true);
-    }, 3500); // 3.5s background sync for immediate shared updates
+    try {
+      // 1. Couple Config Listener
+      const coupleDocRef = doc(db, 'couple', 'config');
+      unsubscribeCouple = onSnapshot(
+        coupleDocRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data() as CoupleConfig;
+            setCouple((prev) => {
+              const updated = { ...prev, ...data };
+              updateCache(updated, events, plans);
+              return updated;
+            });
+          } else {
+            // Seed initial config if not exists
+            const cleanInit = cleanForFirestore(DEFAULT_COUPLE as unknown as Record<string, unknown>);
+            setDoc(coupleDocRef, cleanInit).catch((err) => {
+              handleFirestoreError(err, OperationType.WRITE, 'couple/config');
+            });
+          }
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.GET, 'couple/config');
+        }
+      );
 
-    const onWake = () => {
-      if (document.visibilityState === 'visible') {
-        fetchData(true);
-      }
-    };
+      // 2. Real-time Events Listener with Live Push/Sound Alerts
+      const eventsColRef = collection(db, 'events');
+      unsubscribeEvents = onSnapshot(
+        eventsColRef,
+        (snapshot) => {
+          setIsSyncing(true);
+          const remoteEvents: CalendarEvent[] = [];
+          snapshot.forEach((docSnap) => {
+            remoteEvents.push(docSnap.data() as CalendarEvent);
+          });
 
-    window.addEventListener('focus', onWake);
-    window.addEventListener('online', onWake);
-    document.addEventListener('visibilitychange', onWake);
+          // Sort by date & time
+          remoteEvents.sort((a, b) => {
+            const dateCmp = a.startDate.localeCompare(b.startDate);
+            if (dateCmp !== 0) return dateCmp;
+            return (a.startTime || '').localeCompare(b.startTime || '');
+          });
+
+          // Check for remote additions or modifications to alert partner
+          if (initialEventsLoadedRef.current && !snapshot.metadata.hasPendingWrites) {
+            snapshot.docChanges().forEach((change) => {
+              const eventData = change.doc.data() as CalendarEvent;
+              // If the change was done by the other partner or is shared:
+              const isFromPartner = eventData.lastModifiedBy
+                ? eventData.lastModifiedBy !== currentPartnerIdRef.current
+                : eventData.ownerId !== currentPartnerIdRef.current;
+
+              if (isFromPartner) {
+                const partnerName =
+                  currentPartnerIdRef.current === 'partner1'
+                    ? coupleRef.current.partner2.name
+                    : coupleRef.current.partner1.name;
+
+                if (change.type === 'added') {
+                  const title = `✨ ${partnerName} añadió un evento`;
+                  const body = `${eventData.title} · ${eventData.startDate}${eventData.startTime ? ' a las ' + eventData.startTime : ''}`;
+                  triggerEventNotification({ title, body, tag: `event-add-${eventData.id}` });
+                  setActiveToast({
+                    id: `toast-${Date.now()}`,
+                    title,
+                    body,
+                    type: 'event',
+                  });
+                } else if (change.type === 'modified') {
+                  // Check if a new romantic support note was added
+                  const lastMsg = eventData.supportMessages && eventData.supportMessages.length > 0
+                    ? eventData.supportMessages[eventData.supportMessages.length - 1]
+                    : null;
+
+                  if (lastMsg && lastMsg.senderId !== currentPartnerIdRef.current) {
+                    const title = `💌 Mensaje de amor de ${partnerName}`;
+                    const body = `"${lastMsg.text}" en ${eventData.title}`;
+                    triggerEventNotification({ title, body, tag: `msg-${eventData.id}` });
+                    setActiveToast({
+                      id: `toast-${Date.now()}`,
+                      title,
+                      body,
+                      type: 'message',
+                    });
+                  } else {
+                    const title = `✏️ ${partnerName} modificó un evento`;
+                    const body = `${eventData.title} ha sido actualizado.`;
+                    triggerEventNotification({ title, body, tag: `event-mod-${eventData.id}` });
+                    setActiveToast({
+                      id: `toast-${Date.now()}`,
+                      title,
+                      body,
+                      type: 'event',
+                    });
+                  }
+                }
+              }
+            });
+          }
+
+          initialEventsLoadedRef.current = true;
+          setEvents(remoteEvents);
+          updateCache(coupleRef.current, remoteEvents, plans);
+          setTimeout(() => setIsSyncing(false), 400);
+        },
+        (error) => {
+          setIsSyncing(false);
+          handleFirestoreError(error, OperationType.LIST, 'events');
+        }
+      );
+
+      // 3. Real-time Wishlist Plans Listener
+      const plansColRef = collection(db, 'plans');
+      unsubscribePlans = onSnapshot(
+        plansColRef,
+        (snapshot) => {
+          const remotePlans: WishlistPlan[] = [];
+          snapshot.forEach((docSnap) => {
+            remotePlans.push(docSnap.data() as WishlistPlan);
+          });
+          setPlans(remotePlans);
+          updateCache(coupleRef.current, events, remotePlans);
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'plans');
+        }
+      );
+    } catch (err) {
+      console.warn('Firestore real-time subscription error:', err);
+    }
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', onWake);
-      window.removeEventListener('online', onWake);
-      document.removeEventListener('visibilitychange', onWake);
+      if (unsubscribeCouple) unsubscribeCouple();
+      if (unsubscribeEvents) unsubscribeEvents();
+      if (unsubscribePlans) unsubscribePlans();
     };
-  }, [fetchData]);
+  }, [updateCache]);
 
   // Change current active user persona
   const switchPartner = (id: 'partner1' | 'partner2') => {
     setCurrentPartnerId(id);
     try {
       localStorage.setItem(CURRENT_PARTNER_KEY, id);
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
 
-  // Add or edit event
+  // Add or edit event in Real-Time Cloud Firestore
   const saveEvent = async (eventData: Partial<CalendarEvent> & { title: string; startDate: string }) => {
     const id = eventData.id || `evt-${Date.now()}`;
     const now = new Date().toISOString();
@@ -189,8 +309,10 @@ export function useCalendarData() {
       reminder: eventData.reminder,
       createdAt: eventData.createdAt || now,
       updatedAt: now,
+      lastModifiedBy: currentPartnerId,
     };
 
+    // Optimistic UI update
     setEvents((prev) => {
       const exists = prev.some((e) => e.id === id);
       const next = exists ? prev.map((e) => (e.id === id ? updatedEvent : e)) : [...prev, updatedEvent];
@@ -198,26 +320,18 @@ export function useCalendarData() {
       return next;
     });
 
+    // Write cleaned data to Firestore Real-Time Cloud
     try {
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedEvent),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.event) {
-          setEvents((prev) => prev.map((e) => (e.id === id ? result.event : e)));
-        }
-      }
+      const cleaned = cleanForFirestore(updatedEvent as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'events', id), cleaned);
     } catch (err) {
-      console.warn('Saved offline, will sync when reconnected:', err);
+      handleFirestoreError(err, OperationType.WRITE, `events/${id}`);
     }
 
     return updatedEvent;
   };
 
-  // Send support message to an event
+  // Send support message to an event in Real-Time
   const sendSupportMessage = async (eventId: string, text: string, emoji = '❤️') => {
     const sender = currentPartnerId === 'partner1' ? couple.partner1 : couple.partner2;
     const newMsg: SupportMessage = {
@@ -229,37 +343,31 @@ export function useCalendarData() {
       createdAt: new Date().toISOString(),
     };
 
+    const targetEvent = events.find((e) => e.id === eventId);
+    if (!targetEvent) return;
+
+    const updatedEvent: CalendarEvent = {
+      ...targetEvent,
+      supportMessages: [...(targetEvent.supportMessages || []), newMsg],
+      updatedAt: new Date().toISOString(),
+      lastModifiedBy: currentPartnerId,
+    };
+
     setEvents((prev) => {
-      const next = prev.map((e) => {
-        if (e.id === eventId) {
-          return {
-            ...e,
-            supportMessages: [...(e.supportMessages || []), newMsg],
-          };
-        }
-        return e;
-      });
+      const next = prev.map((e) => (e.id === eventId ? updatedEvent : e));
       updateCache(couple, next, plans);
       return next;
     });
 
     try {
-      await fetch(`/api/events/${eventId}/support`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderId: currentPartnerId,
-          senderName: sender.name,
-          text,
-          emoji,
-        }),
-      });
+      const cleaned = cleanForFirestore(updatedEvent as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'events', eventId), cleaned);
     } catch (err) {
-      console.warn('Support message saved locally:', err);
+      handleFirestoreError(err, OperationType.WRITE, `events/${eventId}`);
     }
   };
 
-  // Attach photo to event scrapbook
+  // Attach photo to event scrapbook in Real-Time
   const attachPhotoToEvent = async (
     eventId: string,
     photoUrl: string,
@@ -276,67 +384,65 @@ export function useCalendarData() {
       addedAt: new Date().toISOString(),
     };
 
+    const targetEvent = events.find((e) => e.id === eventId);
+    if (!targetEvent) return;
+
+    const existingPhotos = targetEvent.photos || [];
+    const updatedEvent: CalendarEvent = {
+      ...targetEvent,
+      photoUrl: photoUrl,
+      photoCaption: caption || targetEvent.photoCaption,
+      photos: [...existingPhotos, newPhoto],
+      isMemory: true,
+      updatedAt: new Date().toISOString(),
+      lastModifiedBy: currentPartnerId,
+    };
+
     setEvents((prev) => {
-      const next = prev.map((e) => {
-        if (e.id === eventId) {
-          const existingPhotos = e.photos || [];
-          return {
-            ...e,
-            photoUrl: photoUrl,
-            photoCaption: caption || e.photoCaption,
-            photos: [...existingPhotos, newPhoto],
-            isMemory: true,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return e;
-      });
+      const next = prev.map((e) => (e.id === eventId ? updatedEvent : e));
       updateCache(couple, next, plans);
       return next;
     });
 
     try {
-      await fetch(`/api/events/${eventId}/photo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photo: newPhoto }),
-      });
+      const cleaned = cleanForFirestore(updatedEvent as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'events', eventId), cleaned);
     } catch (err) {
-      console.warn('Photo saved locally, server sync failed:', err);
+      handleFirestoreError(err, OperationType.WRITE, `events/${eventId}`);
     }
   };
 
-  // Remove photo from event
+  // Remove photo from event in Real-Time
   const removePhotoFromEvent = async (eventId: string, photoId?: string) => {
+    const targetEvent = events.find((e) => e.id === eventId);
+    if (!targetEvent) return;
+
+    const filtered = photoId ? (targetEvent.photos || []).filter((p) => p.id !== photoId) : [];
+    const updatedEvent: CalendarEvent = {
+      ...targetEvent,
+      photos: filtered,
+      photoUrl: filtered.length > 0 ? filtered[filtered.length - 1].url : undefined,
+      photoCaption: filtered.length > 0 ? filtered[filtered.length - 1].caption : undefined,
+      isMemory: filtered.length > 0,
+      updatedAt: new Date().toISOString(),
+      lastModifiedBy: currentPartnerId,
+    };
+
     setEvents((prev) => {
-      const next = prev.map((e) => {
-        if (e.id === eventId) {
-          const filtered = photoId ? (e.photos || []).filter((p) => p.id !== photoId) : [];
-          return {
-            ...e,
-            photos: filtered,
-            photoUrl: filtered.length > 0 ? filtered[filtered.length - 1].url : undefined,
-            photoCaption: filtered.length > 0 ? filtered[filtered.length - 1].caption : undefined,
-            isMemory: filtered.length > 0,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return e;
-      });
+      const next = prev.map((e) => (e.id === eventId ? updatedEvent : e));
       updateCache(couple, next, plans);
       return next;
     });
 
     try {
-      await fetch(`/api/events/${eventId}/photo/${photoId || 'all'}`, {
-        method: 'DELETE',
-      });
+      const cleaned = cleanForFirestore(updatedEvent as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'events', eventId), cleaned);
     } catch (err) {
-      console.warn('Photo removed locally:', err);
+      handleFirestoreError(err, OperationType.WRITE, `events/${eventId}`);
     }
   };
 
-  // Delete event
+  // Delete event in Real-Time Cloud Firestore
   const deleteEvent = async (id: string) => {
     setEvents((prev) => {
       const next = prev.filter((e) => e.id !== id);
@@ -345,13 +451,13 @@ export function useCalendarData() {
     });
 
     try {
-      await fetch(`/api/events/${id}`, { method: 'DELETE' });
+      await deleteDoc(doc(db, 'events', id));
     } catch (err) {
-      console.warn('Deleted locally, server sync failed:', err);
+      handleFirestoreError(err, OperationType.DELETE, `events/${id}`);
     }
   };
 
-  // Save couple profile config (including theme switch)
+  // Save couple profile config in Real-Time
   const saveCoupleConfig = async (newConfig: Partial<CoupleConfig>) => {
     const updated: CoupleConfig = {
       ...couple,
@@ -361,13 +467,10 @@ export function useCalendarData() {
     updateCache(updated, events, plans);
 
     try {
-      await fetch('/api/couple', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig),
-      });
+      const cleaned = cleanForFirestore(updated as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'couple', 'config'), cleaned);
     } catch (err) {
-      console.warn('Couple config saved locally:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'couple/config');
     }
   };
 
@@ -376,7 +479,7 @@ export function useCalendarData() {
     saveCoupleConfig({ theme });
   };
 
-  // Add / edit wishlist plan
+  // Add / edit wishlist plan in Real-Time
   const savePlan = async (planData: Partial<WishlistPlan> & { title: string }) => {
     const id = planData.id || `plan-${Date.now()}`;
     const newPlan: WishlistPlan = {
@@ -399,17 +502,14 @@ export function useCalendarData() {
     });
 
     try {
-      await fetch('/api/plans', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPlan),
-      });
+      const cleaned = cleanForFirestore(newPlan as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'plans', id), cleaned);
     } catch (err) {
-      console.warn('Plan saved locally:', err);
+      handleFirestoreError(err, OperationType.WRITE, `plans/${id}`);
     }
   };
 
-  // Delete plan
+  // Delete plan in Real-Time
   const deletePlan = async (id: string) => {
     setPlans((prev) => {
       const next = prev.filter((p) => p.id !== id);
@@ -418,25 +518,17 @@ export function useCalendarData() {
     });
 
     try {
-      await fetch(`/api/plans/${id}`, { method: 'DELETE' });
+      await deleteDoc(doc(db, 'plans', id));
     } catch (err) {
-      console.warn('Plan deleted locally:', err);
+      handleFirestoreError(err, OperationType.DELETE, `plans/${id}`);
     }
   };
 
-  // Reset to demo
+  // Reset demo
   const resetDemo = async () => {
     try {
-      const res = await fetch('/api/reset-demo', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data) {
-          setCouple(data.data.couple);
-          setEvents(data.data.events);
-          setPlans(data.data.plans);
-          updateCache(data.data.couple, data.data.events, data.data.plans);
-        }
-      }
+      const cleaned = cleanForFirestore(DEFAULT_COUPLE as unknown as Record<string, unknown>);
+      await setDoc(doc(db, 'couple', 'config'), cleaned);
     } catch (e) {
       console.error(e);
     }
@@ -471,6 +563,8 @@ export function useCalendarData() {
     searchQuery,
     loading,
     isSyncing,
+    activeToast,
+    dismissToast: () => setActiveToast(null),
     setFilterOwner,
     setSearchQuery,
     switchPartner,
@@ -484,6 +578,5 @@ export function useCalendarData() {
     savePlan,
     deletePlan,
     resetDemo,
-    refreshData: () => fetchData(true),
   };
 }

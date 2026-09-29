@@ -12,7 +12,8 @@ import { fromDateString, toDateString } from './utils/dateUtils';
 import { THEMES } from './utils/themeStyles';
 import { Language, TRANSLATIONS } from './utils/i18n';
 import { Header } from './components/Header';
-import { CoupleBanner } from './components/CoupleBanner';
+import { CalendarOptionsDrawer } from './components/CalendarOptionsDrawer';
+import { NotificationToast } from './components/NotificationToast';
 import { MonthView } from './components/MonthView';
 import { WeekView } from './components/WeekView';
 import { DayView } from './components/DayView';
@@ -26,11 +27,7 @@ import { CoupleDiceModal } from './components/CoupleDiceModal';
 import { PWAInstallGuideModal } from './components/PWAInstallGuideModal';
 import {
   Plus,
-  Sparkles,
   WifiOff,
-  Dices,
-  Flame,
-  Heart,
 } from 'lucide-react';
 
 export default function App() {
@@ -54,6 +51,7 @@ export default function App() {
   }, []);
 
   // Modals state
+  const [isOptionsDrawerOpen, setIsOptionsDrawerOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<CalendarEvent | null>(null);
   const [initialDateForModal, setInitialDateForModal] = useState<string | undefined>();
@@ -78,6 +76,8 @@ export default function App() {
     searchQuery,
     isSyncing,
     loading,
+    activeToast,
+    dismissToast,
     setFilterOwner,
     setSearchQuery,
     switchPartner,
@@ -130,35 +130,32 @@ export default function App() {
     setCurrentDate(new Date());
   }, []);
 
-  // Day selection from month or week -> switches to day view
-  const handleSelectDay = useCallback((dateString: string) => {
-    setCurrentDate(fromDateString(dateString));
-    setView('day');
-  }, []);
-
-  // Quick add handlers
+  // Event modal actions
   const handleQuickAdd = useCallback((dateString?: string, hour?: string) => {
     setEventToEdit(null);
-    setInitialDateForModal(dateString || toDateString(currentDate));
+    setInitialDateForModal(dateString || toDateString(new Date()));
     setInitialHourForModal(hour);
     setIsEventModalOpen(true);
-  }, [currentDate]);
+  }, []);
 
-  // Event click -> view detail
   const handleSelectEvent = useCallback((event: CalendarEvent) => {
     setSelectedEvent(event);
     setIsDetailModalOpen(true);
   }, []);
 
-  // Edit from detail
   const handleEditFromDetail = useCallback((event: CalendarEvent) => {
+    setIsDetailModalOpen(false);
     setEventToEdit(event);
     setInitialDateForModal(undefined);
     setInitialHourForModal(undefined);
     setIsEventModalOpen(true);
   }, []);
 
-  // Convert a wishlist plan into an event
+  const handleSelectDay = useCallback((dateString: string) => {
+    setCurrentDate(fromDateString(dateString));
+    setView('day');
+  }, []);
+
   const handleSchedulePlan = useCallback((plan: WishlistPlan) => {
     setEventToEdit(null);
     setInitialDateForModal(toDateString(new Date()));
@@ -166,7 +163,7 @@ export default function App() {
     setIsEventModalOpen(true);
   }, []);
 
-  // Keyboard navigation
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -194,11 +191,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleToday, handleQuickAdd]);
 
-  const isBears = couple.theme === 'bears';
-  const isDragons = couple.theme === 'dragons';
-
   return (
     <div className={`theme-${couple.theme || 'classic'} min-h-[100dvh] lg:h-screen lg:overflow-hidden ${theme.bgMain} flex flex-col ${theme.fontDisplay} antialiased ${theme.textPrimary} transition-colors duration-300 relative`}>
+      {/* Real-time In-App Push Notification Toast */}
+      <NotificationToast toast={activeToast} onDismiss={dismissToast} />
+
       {/* Offline Alert Banner */}
       {!isOnline && (
         <div className="bg-amber-500 text-white text-xs font-semibold px-4 py-1.5 flex items-center justify-center gap-2 shadow-xs z-50">
@@ -211,7 +208,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Header (Google Calendar style + Couple Switcher + Themes + Dice) */}
+      {/* Clean Minimalist Header (Single Row) */}
       <Header
         currentDate={currentDate}
         view={view}
@@ -219,40 +216,18 @@ export default function App() {
         currentPartnerId={currentPartnerId}
         filterOwner={filterOwner}
         searchQuery={searchQuery}
-        isInstallable={isInstallable}
-        isInstalled={isInstalled}
-        plansCount={plans.filter((p) => !p.completed).length}
         lang={lang}
-        onLanguageChange={handleLanguageChange}
         onPrev={handlePrev}
         onNext={handleNext}
         onToday={handleToday}
         onViewChange={setView}
-        onFilterChange={setFilterOwner}
-        onSearchChange={setSearchQuery}
         onSwitchPartner={switchPartner}
         onOpenNewEvent={() => handleQuickAdd()}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenWishlist={() => setIsWishlistOpen(true)}
-        onOpenThemeSelector={() => setIsThemeModalOpen(true)}
-        onOpenDice={() => setIsDiceModalOpen(true)}
-        onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
-        onInstallApp={install}
+        onOpenMenuDrawer={() => setIsOptionsDrawerOpen(true)}
       />
 
-      {/* Couple Status & Next Shared Event Bar */}
-      <CoupleBanner
-        couple={couple}
-        events={events}
-        isSyncing={isSyncing}
-        lang={lang}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenWishlist={() => setIsWishlistOpen(true)}
-        onOpenThemeSelector={() => setIsThemeModalOpen(true)}
-      />
-
-      {/* Main Calendar Viewport */}
-      <main className="flex-1 flex flex-col max-w-7xl w-full mx-auto sm:px-4 sm:py-3 overflow-hidden min-h-0">
+      {/* Main Calendar Viewport (Expands cleanly and gets 100% focus) */}
+      <main className="flex-1 flex flex-col max-w-7xl w-full mx-auto sm:px-4 sm:py-2.5 overflow-hidden min-h-0">
         <div className={`flex-1 flex flex-col ${theme.bgCard} sm:rounded-2xl sm:shadow-xs sm:border ${theme.borderSubtle} overflow-hidden transition-colors min-h-0`}>
           {view === 'month' && (
             <MonthView
@@ -301,84 +276,104 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Action Buttons on Mobile */}
-      <div className="fixed bottom-5 right-4 sm:hidden z-30 flex flex-col items-end gap-2.5">
-        <button
-          onClick={() => setIsDiceModalOpen(true)}
-          className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center active:scale-95 transition-transform ${
-            isDragons
-              ? 'bg-[#2A1715] text-orange-300 border-red-800'
-              : isBears
-              ? 'bg-[#FEF3C7] text-amber-900 border-[#FDE68A]'
-              : 'bg-white text-purple-600 border-slate-200'
-          }`}
-          title={lang === 'it' ? 'Dadi della fortuna' : 'Dados de la suerte'}
-        >
-          <Dices className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={() => setIsWishlistOpen(true)}
-          className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center active:scale-95 transition-transform ${
-            isDragons
-              ? 'bg-[#2D1E10] text-amber-300 border-amber-800'
-              : isBears
-              ? 'bg-[#FEF3C7] text-amber-900 border-[#FDE68A]'
-              : 'bg-white text-amber-500 border-slate-200'
-          }`}
-          title={lang === 'it' ? 'Lista dei desideri' : 'Planes de pareja'}
-        >
-          <Sparkles className="w-5 h-5" />
-        </button>
-
+      {/* Floating Action Button for Mobile: Quick Add Event */}
+      <div className="fixed bottom-5 right-4 sm:hidden z-30">
         <button
           onClick={() => handleQuickAdd()}
-          className={`w-13 h-13 rounded-full text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform ${
-            isDragons
-              ? 'bg-gradient-to-r from-red-600 to-orange-600'
-              : isBears
-              ? 'bg-gradient-to-r from-[#B45309] to-[#D97706]'
-              : 'bg-slate-900 hover:bg-slate-800'
-          }`}
+          className="w-13 h-13 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform bg-slate-900 hover:bg-slate-800"
           title={lang === 'it' ? 'Nuovo evento' : 'Añadir nuevo evento'}
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
         </button>
       </div>
 
+      {/* Slide-over Options & Utilities Drawer */}
+      <CalendarOptionsDrawer
+        isOpen={isOptionsDrawerOpen}
+        onClose={() => setIsOptionsDrawerOpen(false)}
+        couple={couple}
+        lang={lang}
+        currentPartnerId={currentPartnerId}
+        filterOwner={filterOwner}
+        searchQuery={searchQuery}
+        plansCount={plans.filter((p) => !p.completed).length}
+        isInstallable={isInstallable}
+        isInstalled={isInstalled}
+        onFilterChange={setFilterOwner}
+        onSearchChange={setSearchQuery}
+        onSwitchPartner={switchPartner}
+        onLanguageChange={handleLanguageChange}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
+        onOpenThemeSelector={() => setIsThemeModalOpen(true)}
+        onOpenDice={() => setIsDiceModalOpen(true)}
+        onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
+        onInstallApp={install}
+      />
+
       {/* Create / Edit Event Modal */}
       <EventModal
         isOpen={isEventModalOpen}
-        eventToEdit={eventToEdit}
-        initialDate={initialDateForModal}
-        initialHour={initialHourForModal}
         couple={couple}
         defaultOwnerId={currentPartnerId}
+        initialDate={initialDateForModal}
+        initialHour={initialHourForModal}
+        eventToEdit={eventToEdit}
         lang={lang}
-        onClose={() => setIsEventModalOpen(false)}
+        onClose={() => {
+          setIsEventModalOpen(false);
+          setEventToEdit(null);
+        }}
         onSave={saveEvent}
       />
 
-      {/* Event Details Modal */}
+      {/* Event Details & Scrapbook Modal */}
       <EventDetailModal
         isOpen={isDetailModalOpen}
         event={selectedEvent}
         couple={couple}
         currentPartnerId={currentPartnerId}
         lang={lang}
-        onClose={() => setIsDetailModalOpen(false)}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedEvent(null);
+        }}
         onEdit={handleEditFromDetail}
-        onDelete={deleteEvent}
-        onSendSupportMessage={sendSupportMessage}
-        onAttachPhoto={async (eventId, photoUrl, caption, addedBy) => {
-          const author = addedBy || currentPartnerId;
-          await attachPhotoToEvent(eventId, photoUrl, caption, author);
+        onDelete={async (id) => {
+          await deleteEvent(id);
+          setIsDetailModalOpen(false);
+          setSelectedEvent(null);
+        }}
+        onSendSupportMessage={async (eventId: string, text: string, emoji?: string) => {
+          const safeEmoji = emoji || '❤️';
+          await sendSupportMessage(eventId, text, safeEmoji);
           setSelectedEvent((prev) => {
             if (prev && prev.id === eventId) {
+              const newMsg = {
+                id: `sup-${Date.now()}`,
+                senderId: currentPartnerId,
+                senderName: currentPartnerId === 'partner1' ? couple.partner1.name : couple.partner2.name,
+                text,
+                emoji: safeEmoji,
+                createdAt: new Date().toISOString(),
+              };
+              return {
+                ...prev,
+                supportMessages: [...(prev.supportMessages || []), newMsg],
+              };
+            }
+            return prev;
+          });
+        }}
+        onAttachPhoto={async (eventId: string, photoUrl: string, caption?: string) => {
+          await attachPhotoToEvent(eventId, photoUrl, caption);
+          setSelectedEvent((prev) => {
+            if (prev && prev.id === eventId) {
+              const author = currentPartnerId;
               const newPhoto = {
                 id: `photo-${Date.now()}`,
                 url: photoUrl,
-                caption: caption || '',
+                caption,
                 addedBy: author,
                 addedAt: new Date().toISOString(),
               };
@@ -393,7 +388,7 @@ export default function App() {
             return prev;
           });
         }}
-        onRemovePhoto={async (eventId, photoId) => {
+        onRemovePhoto={async (eventId: string, photoId?: string) => {
           await removePhotoFromEvent(eventId, photoId);
           setSelectedEvent((prev) => {
             if (prev && prev.id === eventId) {

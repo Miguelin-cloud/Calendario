@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   CalendarEvent,
-  CalendarDay,
   CoupleConfig,
 } from '../types/calendar';
 import {
   getMonthDays,
   getCoupleAnniversaryHighlight,
+  CalendarDay,
 } from '../utils/dateUtils';
 import { THEMES } from '../utils/themeStyles';
 import { Language, TRANSLATIONS } from '../utils/i18n';

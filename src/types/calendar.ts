@@ -94,6 +94,7 @@ export interface CalendarEvent {
   isMemory?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  lastModifiedBy?: 'partner1' | 'partner2';
 }
 
 export interface WishlistPlan {

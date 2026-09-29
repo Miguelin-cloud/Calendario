@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny for safety
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Couple configuration & theme settings
+    match /couple/{configId} {
+      allow read: if isValidId(configId);
+      allow create, update: if isValidId(configId)
+        && request.resource.data.keys().hasAll(['partner1', 'partner2', 'sharedColor', 'theme'])
+        && request.resource.data.theme in ['classic', 'bears', 'dragons'];
+      allow delete: if false;
+    }
+
+    // Real-time synchronizing events
+    match /events/{eventId} {
+      allow read: if isValidId(eventId);
+      allow list: if true;
+      allow create: if isValidId(eventId)
+        && request.resource.data.keys().hasAll(['id', 'title', 'startDate', 'ownerId', 'color'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200
+        && request.resource.data.startDate is string && request.resource.data.startDate.size() <= 20;
+      allow update: if isValidId(eventId)
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200;
+      allow delete: if isValidId(eventId);
+    }
+
+    // Real-time synchronizing wishlist plans
+    match /plans/{planId} {
+      allow read: if isValidId(planId);
+      allow list: if true;
+      allow create: if isValidId(planId)
+        && request.resource.data.keys().hasAll(['id', 'title', 'suggestedBy', 'completed'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200;
+      allow update: if isValidId(planId)
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200;
+      allow delete: if isValidId(planId);
+    }
+  }
+}
